@@ -245,9 +245,11 @@ void execute(string const &exec_path, string const &arg) {
         c_args[1] = const_cast<char*>(arg.data());
         c_args[2] = nullptr;
 		if (execve(c_args[0], c_args, environ) == -1) {
+            delete[] c_args;
 			perror("ERROR: execution failed.");
 			exit(EXIT_FAILURE);
 		}
+        delete[] c_args;        
 		exit(EXIT_SUCCESS);
 	} else {
 		int res;
@@ -277,5 +279,6 @@ int main(int argc, char *argv[], char *envp[]) {
             printf("%s\n", out.data());
         }
     }
+
     return 0;
 }
