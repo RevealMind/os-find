@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include<sys/wait.h>
 
 enum comparison_mark {NO, LOWER, EQUAL, GREATER};
 
@@ -233,6 +234,31 @@ void show_help() {
     printf("\t-exec <path>         set <path> of executable, which will get output\n");
 }
 
+
+void execute(string const &exec_path, string const &arg) {
+    pid_t pid = fork();
+	if (pid < 0) {
+		perror("ERROR: can't create a child process.");
+	} else if (pid == 0) {
+        char** c_args = new char*[3];
+        c_args[0] = const_cast<char*>(exec_path.data());
+        c_args[1] = const_cast<char*>(arg.data());
+        c_args[2] = nullptr;
+		if (execve(c_args[0], c_args, environ) == -1) {
+			perror("ERROR: execution failed.");
+			exit(EXIT_FAILURE);
+		}
+		exit(EXIT_SUCCESS);
+	} else {
+		int res;
+		if (waitpid(pid, &res, 0) == -1) {
+			perror("ERROR: waiting failed.");
+		} else {
+			printf("Return code: %d.\n", res);
+		}
+	}
+}
+
 int main(int argc, char *argv[], char *envp[]) {
     find_helper helper = parse_args(argc, argv);
     // std::cout << helper.inum << std::endl << helper.is_error << std::endl;
@@ -243,21 +269,8 @@ int main(int argc, char *argv[], char *envp[]) {
     }
     vector<string> list = bfs(helper);
     if (helper.exec_need) {
-        size_t n = list.size();
-        
-        char** c_args = new char*[n + 2];
-        c_args[0] = const_cast<char*>(helper.exec_path.data());
-        
-        for (size_t i = 1; i <= n; ++i) {
-            c_args[i] = const_cast<char*>(list[i - 1].data());
-        }
-        
-        c_args[n + 1] = NULL;
-
-        if (execve(c_args[0], c_args, envp) == -1) {
-            perror(("While executing " + helper.exec_path).data());
-            delete[] c_args;
-            return 1;
+        for (string const& file : list) {
+            execute(helper.exec_path, file);
         }
     } else {
         for (auto out : list) {
